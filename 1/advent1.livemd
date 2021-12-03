@@ -88,3 +88,75 @@ ExUnit.run()
 ```elixir
 Advent1.countIncreases(dataArray)
 ```
+
+## Part 2 - increments by slices of 3
+
+```elixir
+defmodule Advent1b do
+  def countIncreasesByChunks(data) do
+    case length(data) do
+      0 -> 0
+      1 -> 0
+      2 -> 0
+      3 -> 0
+      _ -> iterateChunks(0, 99_999_999, Enum.chunk_every(data, 3, 1, :discard))
+    end
+  end
+
+  defp iterateChunks(current, _, []) do
+    current
+  end
+
+  defp iterateChunks(current, previous, [head | rest]) do
+    s = Enum.sum(head)
+    inspect(head)
+    # IO.puts "Iterate chunks: sum: " <> s <> ", previous: " <> previous
+    if s > previous do
+      iterateChunks(current + 1, s, rest)
+    else
+      iterateChunks(current, s, rest)
+    end
+  end
+end
+```
+
+## Testing
+
+```elixir
+Advent1b.countIncreasesByChunks([1, 2, 3, 4])
+```
+
+```elixir
+defmodule Advent1Test do
+  use ExUnit.Case
+  import Advent1b
+
+  test "Returns 0 for empty array" do
+    assert countIncreasesByChunks([]) == 0
+  end
+
+  test "Returns 0 for arrays of size < 3" do
+    assert countIncreasesByChunks([1]) == 0
+    assert countIncreasesByChunks([1, 2]) == 0
+    assert countIncreasesByChunks([1, 2, 3]) == 0
+  end
+
+  test "Arrays with 4 elements" do
+    assert countIncreasesByChunks([1, 2, 3, 4]) == 1
+    assert countIncreasesByChunks([1, 2, 3, 1]) == 0
+    assert countIncreasesByChunks([1, 2, 3, 0]) == 0
+  end
+
+  test "Arrays with from the example" do
+    assert countIncreasesByChunks([199, 200, 208, 210, 200, 207, 240, 269, 260, 263]) == 5
+  end
+end
+
+ExUnit.run()
+```
+
+## Results
+
+```elixir
+Advent1b.countIncreasesByChunks(dataArray)
+```
