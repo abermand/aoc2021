@@ -1,0 +1,244 @@
+# Day 3
+
+## Input
+
+```elixir
+Mix.install([{:kino, github: "livebook-dev/kino"}])
+```
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+input = Kino.Input.textarea("please enter your input")
+```
+
+```elixir
+defmodule Vector do
+  def add([], []) do
+    []
+  end
+
+  def add([a | t1], [b | t2]) do
+    [a + b | add(t1, t2)]
+  end
+
+  def zero(len) do
+    List.duplicate(0, len)
+  end
+end
+```
+
+```elixir
+defmodule Advent3 do
+  use Bitwise
+
+  @bitsLength 12
+
+  def toBinaryArray(input) do
+    String.split(input, "\n", trim: true)
+    |> Enum.map(fn row -> String.to_integer(String.trim(row), 2) end)
+  end
+
+  def bitValue(i, bit) do
+    (i &&& 1 <<< bit) >>> bit
+  end
+
+  def isBitOn?(i, bit) do
+    (i &&& 1 <<< bit) != 0
+  end
+
+  defp pCountBits(num) do
+    Enum.reduce(0..(@bitsLength - 1), [], fn b, acc -> [bitValue(num, b) | acc] end)
+  end
+
+  def countBits(data) do
+    data
+    |> Enum.map(&pCountBits/1)
+    |> Enum.reduce(Vector.zero(@bitsLength), &Vector.add/2)
+  end
+
+  def getBitRates(data) do
+    len = length(data)
+
+    countBits(data)
+    |> Enum.map(fn x -> x * 100.0 / len end)
+  end
+
+  def to_integer(v, limit \\ 0) do
+    a =
+      if limit == 0 do
+        v
+      else
+        Enum.slice(v, -limit..-1)
+      end
+
+    Enum.reduce(a, 0, fn x, acc -> (acc <<< 1) + x end)
+  end
+
+  defp getGamma(num, limit) do
+    res =
+      num
+      |> Enum.map(fn x ->
+        if x >= 50 do
+          1
+        else
+          0
+        end
+      end)
+
+    to_integer(res, limit)
+  end
+
+  defp getEpsilon(num, limit) do
+    res =
+      num
+      |> Enum.map(fn x ->
+        if x < 50 do
+          1
+        else
+          0
+        end
+      end)
+
+    to_integer(res, limit)
+  end
+
+  def getGammaEpsilon(data, limit \\ 0) do
+    rates = data |> getBitRates
+    %{gamma: getGamma(rates, limit), epsilon: getEpsilon(rates, limit)}
+  end
+end
+```
+
+## Test
+
+```elixir
+nums = Advent3.toBinaryArray("000011111111\n000000000000\n000011110000")
+len = length(nums)
+nums |> Enum.map(fn i -> Advent3.isBitOn?(i, 4) end)
+
+ge = Advent3.getGammaEpsilon(nums)
+IO.puts(~s(Gamma: #{ge.gamma}, Epsilon: #{ge.epsilon}, Product: #{ge.gamma * ge.epsilon}))
+```
+
+```elixir
+ExUnit.start()
+
+defmodule Advent3Test do
+  use ExUnit.Case
+  import Advent3
+
+  test "example from the challenge" do
+    input = "
+    000000000100
+    000000011110
+    000000010110
+    000000010111
+    000000010101
+    000000001111
+    000000000111
+    000000011100
+    000000010000
+    000000011001
+    000000000010
+    000000001010"
+    data = toBinaryArray(input)
+    bits = Advent3.countBits(data)
+    assert bits == [0, 0, 0, 0, 0, 0, 0, 7, 5, 8, 7, 5]
+    # rates = Advent3.getBitRates(data)
+    # assert rates == []
+    ge = Advent3.getGammaEpsilon(data, 5)
+    assert ge.gamma == 22
+    assert ge.epsilon == 9
+  end
+end
+
+ExUnit.run()
+```
+
+```elixir
+data = Advent3.toBinaryArray(Kino.Input.read(input))
+ge = Advent3.getGammaEpsilon(data)
+IO.puts(~s(Gamma: #{ge.gamma}, Epsilon: #{ge.epsilon}, Product: #{ge.gamma * ge.epsilon}))
+```
+
+## Part 2
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+# Will use Jose Valim's way of counting bits
+use Bitwise
+
+bits =
+  input
+  |> Kino.Input.read()
+  |> String.split("\n", trim: true)
+  |> Enum.map(&(&1 |> String.to_charlist() |> List.to_tuple()))
+
+[sample | _] = bits
+digits_lengths = tuple_size(sample)
+middle = div(length(bits), 2)
+
+defmodule GenRating do
+  def mostCommonBit(bits, pos) do
+    one_count = Enum.count(bits, &(elem(&1, pos) == ?1))
+    zero_count = length(bits) - one_count
+    most_common = if one_count >= zero_count, do: ?1, else: ?0
+
+    IO.puts(
+      ~s("Size: #{length(bits)}, one: #{one_count}, zero: #{zero_count}, pos: #{pos}, most: #{most_common}")
+    )
+
+    most_common
+  end
+
+  def leastCommonBit(bits, pos) do
+    one_count = Enum.count(bits, &(elem(&1, pos) == ?1))
+    zero_count = length(bits) - one_count
+    least_common = if zero_count <= one_count, do: ?0, else: ?1
+
+    IO.puts(
+      ~s("Size: #{length(bits)}, one: #{one_count}, zero: #{zero_count}, pos: #{pos}, least: #{least_common}")
+    )
+
+    least_common
+  end
+end
+
+oxygenString =
+  Enum.reduce_while(0..(digits_lengths - 1), bits, fn pos, acc ->
+    if length(acc) == 1 do
+      {:halt, acc}
+    else
+      {
+        :cont,
+        Enum.filter(acc, &(elem(&1, pos) == GenRating.mostCommonBit(acc, pos)))
+      }
+    end
+  end)
+  |> List.first()
+  |> Tuple.to_list()
+
+co2String =
+  Enum.reduce_while(0..(digits_lengths - 1), bits, fn pos, acc ->
+    if length(acc) == 1 do
+      {:halt, acc}
+    else
+      {
+        :cont,
+        Enum.filter(acc, &(elem(&1, pos) == GenRating.leastCommonBit(acc, pos)))
+      }
+    end
+  end)
+  |> List.first()
+  |> Tuple.to_list()
+
+# oxygenString |> List.first
+oxygen = String.to_integer(List.to_string(oxygenString), 2)
+IO.puts(~s(Oxygen: #{oxygen}, #{oxygenString}))
+co2 = String.to_integer(List.to_string(co2String), 2)
+IO.puts(~s(CO2: #{co2}, #{co2String}))
+
+IO.puts(~s(Life support: #{oxygen * co2}, #{co2String}))
+```

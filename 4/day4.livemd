@@ -1,0 +1,123 @@
+# Day 4
+
+## Section
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+Mix.install([{:kino, github: "livebook-dev/kino"}])
+```
+
+```elixir
+drawsInput = Kino.Input.textarea("Enter your draws")
+```
+
+```elixir
+boardsInput = Kino.Input.textarea("Enter your boards")
+```
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+draws =
+  drawsInput
+  |> Kino.Input.read()
+  |> (&String.split(&1, ",", trim: true)).()
+```
+
+```elixir
+boards =
+  boardsInput
+  |> Kino.Input.read()
+  |> (&String.split(&1, "\n\n", trim: true)).()
+  |> Enum.map(fn b ->
+    String.split(b, "\n", trim: true)
+    |> Enum.map(fn row -> String.split(row, " ", trim: true) end)
+  end)
+```
+
+```elixir
+defmodule Bingo do
+  def column(board, pos) do
+    Enum.map(board, fn row -> Enum.at(row, pos) end)
+  end
+
+  def play(board, number) do
+    Enum.map(
+      board,
+      fn row ->
+        Enum.map(
+          row,
+          fn cell -> if cell == number, do: "X", else: cell end
+        )
+      end
+    )
+  end
+
+  def hasWon?(board) do
+    len = length(board)
+    goal = List.duplicate("X", len)
+    checkHorizontal = Enum.any?(board, fn row -> row == goal end)
+
+    if checkHorizontal do
+      true
+    else
+      # check vertical crosses
+      Enum.any?(0..len, fn pos -> column(board, pos) == goal end)
+    end
+  end
+
+  def sum(board) do
+    Enum.map(board, fn row ->
+      Enum.reduce(row, 0, fn x, acc -> if x == "X", do: acc, else: acc + String.to_integer(x) end)
+    end)
+    |> Enum.sum()
+  end
+end
+```
+
+<!-- livebook:{"reevaluate_automatically":true} -->
+
+```elixir
+boardsWithIndex = Enum.zip(0..(length(boards) - 1), boards)
+
+result =
+  Enum.reduce_while(draws, boardsWithIndex, fn draw, current ->
+    next = Enum.map(current, fn {i, board} -> {i, Bingo.play(board, draw)} end)
+
+    case Enum.find(next, fn {_, b} -> Bingo.hasWon?(b) end) do
+      nil -> {:cont, next}
+      {i, b} -> {:halt, %{draw: draw, index: i, board: b}}
+    end
+  end)
+
+IO.puts(~s(Winner is ##{result.index + 1}))
+IO.puts(~s(Draw was #{result.draw}))
+total = Bingo.sum(result.board)
+IO.puts(~s(Board Total is #{total} ))
+IO.puts(~s(End result is #{total * String.to_integer(result.draw)} ))
+```
+
+```elixir
+result =
+  Enum.reduce_while(draws, boardsWithIndex, fn draw, current ->
+    # IO.puts ~s(Drawing #{draw})
+    # IO.puts ~s(Result:)
+    next = Enum.map(current, fn {i, board} -> {i, Bingo.play(board, draw)} end)
+    # IO.inspect next
+    filtered = Enum.reject(next, fn {_, board} -> Bingo.hasWon?(board) end)
+    # IO.puts ~s(Filtered:)
+    # IO.inspect filtered
+    case filtered do
+      [] -> {:halt, %{draw: draw, board: next}}
+      _ -> {:cont, filtered}
+    end
+  end)
+
+IO.puts(~s(Draw was #{result.draw}))
+
+total =
+  Enum.map(result.board, fn {_, board} -> Bingo.sum(board) * String.to_integer(result.draw) end)
+
+IO.inspect(total)
+```
